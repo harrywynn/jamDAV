@@ -1,0 +1,19 @@
+{
+  "name": "jamDAV",
+  "version": "1.0.0",
+  "author": "Harry Wynn <harry@mail.net> (https://harrywynn.dev)",
+  "description": "Creates .ics files from Jam Family Calendar events for use with a calDAV server as no public feed is natively provided.",
+  "scripts": {
+    "jam": "node jam.js"
+  },
+  "engines": {
+    "node": "20.9.x"
+  },
+  "dependencies": {
+    "async": "^3.2.6",
+    "axios": "^1.7.9",
+    "better-sqlite3": "^11.7.0",
+    "dotenv-extended": "^2.9.0",
+    "moment": "^2.30.1"
+  }
+}
