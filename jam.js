@@ -16,6 +16,7 @@ db.pragma('journal_mode = WAL');
 const moment = require('moment');
 moment.suppressDeprecationWarnings = true;
 
+const rrule = require('rrule');
 const axios = require('axios');
 const async = require('async');
 const fs = require('fs');
@@ -117,17 +118,25 @@ async.series([
                                 except: null
                             };
 
-                            if (item.recurrence_enabled && item.recurrence_frequency) {
-                                insert.repeat = (item.recurrence_frequency + '|' + (item.recurrence_interval || 1));
-
-                                let active = recurring[item.id] || [];
-                                active.push(moment(item.start_time).format('YYYY-MM-DD'));
-                                recurring[item.id] = active;
-                            }
-
                             if (item.all_day) {
                                 insert.dtstart = moment(item.start_time).format('YYYY-MM-DD 00:00:00');
                                 insert.dtend = moment(item.start_time).add(1, 'days').format('YYYY-MM-DD 00:00:00');
+                            }
+
+                            if (item.recurrence_enabled && item.recurrence_frequency) {
+                                insert.repeat = (item.recurrence_frequency + '|' + (item.recurrence_interval || 1) + '|' + (item.recurrence_until || 0));
+
+                                //if (item.recurrence_until) {
+                                    //insert.dtend = moment(item.recurrence_until).format('YYYY-MM-DD 23:59:59');
+                                //}
+
+                                let active = recurring[item.id] || [];
+
+                                if (!active.includes(moment(item.start_time).format('YYYY-MM-DD'))) {
+                                    active.push(moment(item.start_time).format('YYYY-MM-DD'));
+                                }
+                                
+                                recurring[item.id] = active;
                             }
 
                             const stmt = db.prepare('INSERT OR REPLACE INTO calendar VALUES (@id, @dtstart, @dtend, @name, @location, @description, @repeat, @except)');
@@ -171,11 +180,19 @@ async.series([
                     continue;
                 }
 
-                let endDate = moment(row.dtend).add(11, 'months');
-                let startDate = moment(row.dtstart);
+                //let endDate = moment(row.dtend).add(11, 'months');
                 let repeat = row.repeat.split('|');
+                let startDate = moment(row.dtstart);
                 let dates = recurring[row.id];
                 let except = [];
+
+                let endDate = moment(row.dtend);
+
+                if (repeat[2] != '0') {
+                    endDate = moment(repeat[2]);
+                } else {
+                    endDate = moment(row.dtend).add(11, 'months');
+                }
 
                 while (startDate.isBefore(endDate)) {
                     if (!dates.includes(startDate.format('YYYY-MM-DD'))) {
@@ -246,18 +263,23 @@ END:VTIMEZONE
                 jam += ('DESCRIPTION:' + (item.description || '') + '\n');
                 jam += ('LOCATION:' + (item.location || '') + '\n');
 
-                if (item.dtend) {
-                    jam += ('DTSTART;TZID=America/New_York:' + moment(item.dtstart).format('YYYYMMDD') + 'T' + moment(item.dtstart).format('HHmmss') + '\n');
-                } else {
-                    jam += ('DTSTART;VALUE=DATE:' + moment(item.dtstart).format('YYYYMMDD') + 'T00:00:00\n');
-                }
-
                 if (item.repeat) {
                     let parts = item.repeat.split('|');
-                    jam += ('RRULE:FREQ=' + parts[0] + ';INTERVAL=' + parts[1] + '\n');
+    
+                    const rule = new rrule.RRule({
+                        freq: rrule.RRule[parts[0]],
+                        interval: parts[1],
+                        dtstart: moment(item.dtstart).toDate(),
+                        tzid: 'America/New_York',
+                        until: (parts[2] == '0' ? null : moment(parts[2]).toDate())
+                    });
 
-                    if (item.except) {
-                        jam += ('EXDATE;TZID=America/New_York:' + item.except.split(',').join('T' + moment(item.dtstart).format('HHmmss') + ', ') + '\n');
+                    jam += (rule.toString() + '\n');
+                } else {
+                    if (item.dtend) {
+                        jam += ('DTSTART;TZID=America/New_York:' + moment(item.dtstart).format('YYYYMMDD') + 'T' + moment(item.dtstart).format('HHmmss') + '\n');
+                    } else {
+                        jam += ('DTSTART;VALUE=DATE:' + moment(item.dtstart).format('YYYYMMDD') + 'T00:00:00\n');
                     }
                 }
 
