@@ -16,7 +16,7 @@ db.pragma('journal_mode = WAL');
 const moment = require('moment');
 moment.suppressDeprecationWarnings = true;
 
-const rrule = require('rrule');
+const RRule = require('rrule').RRule;
 const axios = require('axios');
 const async = require('async');
 const fs = require('fs');
@@ -266,15 +266,18 @@ END:VTIMEZONE
                 if (item.repeat) {
                     let parts = item.repeat.split('|');
     
-                    const rule = new rrule.RRule({
-                        freq: rrule.RRule[parts[0]],
+                    const rule = new RRule({
+                        freq: RRule[parts[0]],
                         interval: parts[1],
                         dtstart: moment(item.dtstart).toDate(),
-                        tzid: 'America/New_York',
                         until: (parts[2] == '0' ? null : moment(parts[2]).toDate())
                     });
 
                     jam += (rule.toString() + '\n');
+
+                    if (item.except) {
+                        jam += ('EXDATE;TZID=America/New_York:' + item.except + '\n');
+                    }
                 } else {
                     if (item.dtend) {
                         jam += ('DTSTART;TZID=America/New_York:' + moment(item.dtstart).format('YYYYMMDD') + 'T' + moment(item.dtstart).format('HHmmss') + '\n');
