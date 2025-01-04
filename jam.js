@@ -260,16 +260,17 @@ END:VTIMEZONE
                 jam += ('DTSTAMP:' + moment().format('YYYYMMDD') + 'T' + moment().format('HHmmss') + 'Z\n');
                 jam += ('UID:jam_' + item.id + '\n');
                 jam += ('SUMMARY:' + item.name + '\n');
-                jam += ('DESCRIPTION:' + (item.description || '') + '\n');
+                jam += ('DESCRIPTION:' + (item.description ? item.description.split('\n').join('\\n') : '') + '\n');
                 jam += ('LOCATION:' + (item.location || '') + '\n');
-
+                
                 if (item.repeat) {
                     let parts = item.repeat.split('|');
-    
+
                     const rule = new RRule({
                         freq: RRule[parts[0]],
                         interval: parts[1],
-                        dtstart: moment(item.dtstart).toDate(),
+                        tzid: 'America/New_York',
+                        dtstart: moment(item.dtstart).subtract(((new Date())).getTimezoneOffset(), 'minutes').toDate(),
                         until: (parts[2] == '0' ? null : moment(parts[2]).toDate())
                     });
 
@@ -321,7 +322,7 @@ END:VTIMEZONE
                     continue;
                 }
 
-                if (!ids.includes(file)) {
+                if (!ids.includes(file) && fs.existsSync(process.env.ICS_PATH + '/' + file)) {
                     fs.unlinkSync(process.env.ICS_PATH + '/' + file);
                 }
             }
