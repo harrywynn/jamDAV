@@ -264,13 +264,17 @@ END:VTIMEZONE
                 jam += ('LOCATION:' + (item.location || '') + '\n');
                 
                 if (item.repeat) {
+                    // adjust time for zone
+                    let hours = (moment(item.dtstart).toDate().toString().indexOf('Daylight') > 0 ? 4 : 5);
+                    item.dtstart = moment(item.dtstart).subtract(hours, 'hours').format('YYYY-MM-DD HH:mm:ss');
+
                     let parts = item.repeat.split('|');
 
                     const rule = new RRule({
                         freq: RRule[parts[0]],
                         interval: parts[1],
                         tzid: 'America/New_York',
-                        dtstart: moment(item.dtstart).subtract(((new Date())).getTimezoneOffset(), 'minutes').toDate(),
+                        dtstart: moment(item.dtstart).toDate(),
                         until: (parts[2] == '0' ? null : moment(parts[2]).toDate())
                     });
 
